@@ -4,6 +4,9 @@ name: Nuke All Repos (Full Restore)
 # MANUAL TRIGGER ONLY — This workflow is destructive by design.
 # Always run with dry_run: true first to preview targets.
 # ──────────────────────────────────────────────────────────────────────
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
