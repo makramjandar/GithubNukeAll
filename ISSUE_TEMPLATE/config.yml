@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHubNukeAll Discussions
+    url: https://github.com/youruser/GitHubNukeAll/discussions
+    about: Ask questions, share ideas, or get help with usage
+  - name: Documentation
+    url: https://github.com/youruser/GitHubNukeAll#readme
+    about: Check the README for quick start and usage guide
