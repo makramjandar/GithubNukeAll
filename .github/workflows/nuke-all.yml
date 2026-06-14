@@ -1,8 +1,5 @@
 name: Nuke All Repos (Full Restore)
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 # ──────────────────────────────────────────────────────────────────────
 # MANUAL TRIGGER ONLY — This workflow is destructive by design.
 # Always run with dry_run: true first to preview targets.
@@ -42,9 +39,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.NUKE_TOKEN }}
         run: |
-          curl -s -H "Authorization: token $TOKEN" \
-            "https://api.github.com/user/repos?per_page=100&affiliation=owner" \
-            > /tmp/all-repos.json
+          curl -s -H "Authorization: token $TOKEN"             "https://api.github.com/user/repos?per_page=100&affiliation=owner"             > /tmp/all-repos.json
 
       # ───────────────────────────────────────────────────────────────
       # Identify pinned repositories via GitHub GraphQL API
@@ -55,12 +50,7 @@ jobs:
           TOKEN: ${{ secrets.NUKE_TOKEN }}
           USER: ${{ github.repository_owner }}
         run: |
-          curl -s -X POST \
-            -H "Authorization: token $TOKEN" \
-            -H "Content-Type: application/json" \
-            https://api.github.com/graphql \
-            -d '{"query": "query { user(login: \"'"'"$USER'\"'") { pinnedItems(first: 6, types: REPOSITORY) { nodes { ... on Repository { name } } } } }"}' \
-            > /tmp/pinned.json
+          curl -s -X POST             -H "Authorization: token $TOKEN"             -H "Content-Type: application/json"             https://api.github.com/graphql             -d '{"query": "query { user(login: "'"'"$USER'"'") { pinnedItems(first: 6, types: REPOSITORY) { nodes { ... on Repository { name } } } } }"}'             > /tmp/pinned.json
           jq -r '.data.user.pinnedItems.nodes[].name // empty' /tmp/pinned.json > /tmp/pinned-list.txt
 
       # ───────────────────────────────────────────────────────────────
@@ -121,7 +111,7 @@ jobs:
             echo "═══════════════════════════════════════════════════"
             ls /tmp/clean-repos/ | sed 's/^/  • /'
             echo ""
-            echo "🛡️ Self-excluded: $SELF_NAME (this repository)"
+            echo "🛡️ Self-excluded: $SELF_NAME (this repository)
             echo ""
             echo "═══════════════════════════════════════════════════"
             echo "METADATA PER REPOSITORY"
@@ -190,9 +180,7 @@ jobs:
 
             # ── 1. DESTROY ───────────────────────────────────────────
             echo "→ [1/5] Destroying repository..."
-            HTTP_STATUS=$(curl -X DELETE -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: token $TOKEN" \
-              "https://api.github.com/repos/$USER/$REPO_NAME")
+            HTTP_STATUS=$(curl -X DELETE -s -o /dev/null -w "%{http_code}"               -H "Authorization: token $TOKEN"               "https://api.github.com/repos/$USER/$REPO_NAME")
 
             if [ "$HTTP_STATUS" != "204" ]; then
               echo "  ⚠️ Delete returned HTTP $HTTP_STATUS — continuing anyway"
@@ -203,20 +191,16 @@ jobs:
 
             # ── 2. RECREATE ──────────────────────────────────────────
             echo "→ [2/5] Recreating with preserved settings..."
-            HTTP_STATUS=$(curl -X POST -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: token $TOKEN" \
-              -H "Accept: application/vnd.github.v3+json" \
-              -d "{
-                \"name\":\"$REPO_NAME\",
-                \"description\":\"$DESCRIPTION\",
-                \"homepage\":\"$HOMEPAGE\",
-                \"private\":$PRIVATE_BOOL,
-                \"has_issues\":$HAS_ISSUES,
-                \"has_wiki\":$HAS_WIKI,
-                \"has_projects\":$HAS_PROJECTS,
-                \"has_downloads\":false
-              }" \
-              "https://api.github.com/user/repos")
+            HTTP_STATUS=$(curl -X POST -s -o /dev/null -w "%{http_code}"               -H "Authorization: token $TOKEN"               -H "Accept: application/vnd.github.v3+json"               -d "{
+                "name":"$REPO_NAME",
+                "description":"$DESCRIPTION",
+                "homepage":"$HOMEPAGE",
+                "private":$PRIVATE_BOOL,
+                "has_issues":$HAS_ISSUES,
+                "has_wiki":$HAS_WIKI,
+                "has_projects":$HAS_PROJECTS,
+                "has_downloads":false
+              }"               "https://api.github.com/user/repos")
 
             if [ "$HTTP_STATUS" != "201" ]; then
               echo "  ❌ Create failed with HTTP $HTTP_STATUS — ABORTING this repo"
@@ -228,11 +212,7 @@ jobs:
             # ── 3. RESTORE TOPICS ──────────────────────────────────────
             if [ -n "$TOPICS" ] && [ "$TOPICS" != "null" ] && [ "$TOPICS" != "[]" ]; then
               echo "→ [3/5] Re-applying topics: $TOPICS"
-              curl -X PUT -s -o /dev/null \
-                -H "Authorization: token $TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                -d "{\"names\":$TOPICS}" \
-                "https://api.github.com/repos/$USER/$REPO_NAME/topics"
+              curl -X PUT -s -o /dev/null                 -H "Authorization: token $TOKEN"                 -H "Accept: application/vnd.github.v3+json"                 -d "{"names":$TOPICS}"                 "https://api.github.com/repos/$USER/$REPO_NAME/topics"
               echo "  ✅ Topics restored"
             else
               echo "→ [3/5] No topics to restore"
@@ -243,22 +223,17 @@ jobs:
               echo "→ [4/5] Restoring GitHub Pages..."
 
               # Detect original Pages source configuration
-              PAGES_INFO=$(curl -s -H "Authorization: token $TOKEN" \
-                "https://api.github.com/repos/$USER/$REPO_NAME/pages" 2>/dev/null || echo "{}")
+              PAGES_INFO=$(curl -s -H "Authorization: token $TOKEN"                 "https://api.github.com/repos/$USER/$REPO_NAME/pages" 2>/dev/null || echo "{}")
 
               SOURCE_BRANCH=$(echo "$PAGES_INFO" | jq -r '.source.branch // "main"')
               SOURCE_PATH=$(echo "$PAGES_INFO" | jq -r '.source.path // "/ (root)"')
 
-              curl -X POST -s -o /dev/null \
-                -H "Authorization: token $TOKEN" \
-                -H "Accept: application/vnd.github.v3+json" \
-                -d "{
-                  \"source\":{
-                    \"branch\":\"$SOURCE_BRANCH\",
-                    \"path\":\"$SOURCE_PATH\"
+              curl -X POST -s -o /dev/null                 -H "Authorization: token $TOKEN"                 -H "Accept: application/vnd.github.v3+json"                 -d "{
+                  "source":{
+                    "branch":"$SOURCE_BRANCH",
+                    "path":"$SOURCE_PATH"
                   }
-                }" \
-                "https://api.github.com/repos/$USER/$REPO_NAME/pages"
+                }"                 "https://api.github.com/repos/$USER/$REPO_NAME/pages"
               echo "  ✅ Pages enabled ($SOURCE_BRANCH)"
             else
               echo "→ [4/5] No Pages to restore"
@@ -297,7 +272,7 @@ jobs:
           echo "📦 Repositories processed:"
           ls /tmp/clean-repos/ | sed 's/^/   ✅ /'
           echo ""
-          echo "🛡️ Self-protected: $SELF_NAME (this repository was excluded)"
+          echo "🛡️ Self-protected: $SELF_NAME (this repository was excluded)
           echo ""
           echo "════════════════════════════════════════════════════════════════════"
           echo "📌  MANUAL ACTION REQUIRED: Re-pin repositories"
